@@ -53,17 +53,24 @@ const languageOptions = {
 
 type Step = 'language' | 'framework' | 'details';
 
+interface Project {
+  id: number;
+  name: string;
+  type: string;
+  status: string;
+  lastModified: string;
+  language: string;
+  framework: string;
+  published?: boolean;
+}
+
 interface CreateProjectDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (projectData: {
-    name: string;
-    language: string;
-    framework: string;
-  }) => void;
+  onCreateProject: (project: Project) => void;
 }
 
-export default function CreateProjectDialog({ open, onClose, onSave }: CreateProjectDialogProps) {
+export default function CreateProjectDialog({ open, onClose, onCreateProject }: CreateProjectDialogProps) {
   const [step, setStep] = useState<Step>('language');
   const [selectedLanguage, setSelectedLanguage] = useState<string | null>(null);
   const [selectedFramework, setSelectedFramework] = useState<string | null>(null);
@@ -81,11 +88,17 @@ export default function CreateProjectDialog({ open, onClose, onSave }: CreatePro
 
   const handleSave = () => {
     if (selectedLanguage && selectedFramework && projectName) {
-      onSave({
+      const newProject: Project = {
+        id: Math.floor(Math.random() * 10000), // This will be handled by the backend later
         name: projectName,
+        type: `${selectedFramework}`,
+        status: 'Not Started',
+        lastModified: new Date().toISOString().split('T')[0],
         language: selectedLanguage,
         framework: selectedFramework,
-      });
+        published: false
+      };
+      onCreateProject(newProject);
       handleReset();
     }
   };
