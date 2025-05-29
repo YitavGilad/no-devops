@@ -8,7 +8,7 @@ import {
   ListItemText,
   Typography,
 } from '@mui/material';
-import { FolderOutlined, AnalyticsOutlined } from '@mui/icons-material';
+import { FolderOutlined, AnalyticsOutlined, HomeOutlined } from '@mui/icons-material';
 import { customStyles } from '../../theme/theme';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -43,6 +43,18 @@ export default function Sidebar() {
             component={Link}
             to="/"
             selected={location.pathname === '/'}
+          >
+            <ListItemIcon>
+              <HomeOutlined color="primary" />
+            </ListItemIcon>
+            <ListItemText primary="Getting Started" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton
+            component={Link}
+            to="/projects"
+            selected={location.pathname === '/projects'}
           >
             <ListItemIcon>
               <FolderOutlined color="primary" />
