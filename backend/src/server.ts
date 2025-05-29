@@ -1,7 +1,8 @@
 import dotenv from 'dotenv';
-
-// Load environment variables first
 dotenv.config();
+
+// Set NODE_ENV
+process.env.NODE_ENV = process.env.NODE_ENV || 'development';
 
 import express from 'express';
 import type { Request, Response, NextFunction } from 'express';

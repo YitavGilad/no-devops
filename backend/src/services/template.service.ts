@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs-extra';
 import path from 'path';
 import { CreateRepoParams } from '../types/github.types';
 
@@ -6,7 +6,16 @@ export class TemplateService {
   private templatesDir: string;
 
   constructor() {
-    this.templatesDir = path.join(__dirname, '..', 'templates');
+    // In development, templates are in src/templates
+    // In production, templates are copied to dist/templates
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const baseDir = isDevelopment ? 'src' : 'dist';
+    this.templatesDir = path.join(process.cwd(), baseDir, 'templates');
+    
+    // Ensure templates directory exists
+    if (!fs.existsSync(this.templatesDir)) {
+      throw new Error(`Templates directory not found: ${this.templatesDir}`);
+    }
   }
 
   /**
