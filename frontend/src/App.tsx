@@ -1,12 +1,12 @@
-import './App.css'
+import MainLayout from './components/layout/MainLayout';
+import Projects from './pages/Projects';
 
 function App() {
-
   return (
-    <div className="text-3xl font-bold underline">
-          hello world
-    </div>
-  )
+    <MainLayout>
+      <Projects />
+    </MainLayout>
+  );
 }
 
-export default App
+export default App;
