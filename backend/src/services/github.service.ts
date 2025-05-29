@@ -1,9 +1,16 @@
 import { Octokit } from '@octokit/rest';
 import type { CreateRepoParams, CreateRepoResponse } from '../types/github.types';
+import { TemplateService } from './template.service';
+import { FrameworkService } from './framework.service';
+import fs from 'fs-extra';
+import path from 'path';
 
 export class GitHubService {
   private octokit: Octokit;
   private username: string;
+
+  private templateService: TemplateService;
+  private frameworkService: FrameworkService;
 
   constructor(token: string, username: string) {
     console.log('Initializing GitHub service with username:', username);
@@ -15,6 +22,8 @@ export class GitHubService {
       auth: token
     });
     this.username = username;
+    this.templateService = new TemplateService();
+    this.frameworkService = new FrameworkService();
   }
 
   async createRepository(params: CreateRepoParams): Promise<CreateRepoResponse> {
@@ -63,32 +72,96 @@ export class GitHubService {
   }
 
   private async initializeRepository(repoName: string, params: CreateRepoParams): Promise<void> {
-    // Add README.md
-    await this.octokit.repos.createOrUpdateFileContents({
-      owner: this.username,
-      repo: repoName,
-      path: 'README.md',
-      message: 'Initial commit: Add README.md',
-      content: Buffer.from(this.generateReadme(params)).toString('base64')
-    });
+    // Initialize with basic files
+    const files = [
+      {
+        path: 'README.md',
+        content: this.generateReadme(params),
+        message: 'Initial commit: Add README.md'
+      },
+      {
+        path: '.gitignore',
+        content: this.generateGitignore(params.language),
+        message: 'Add .gitignore'
+      }
+    ];
 
-    // Add .gitignore
-    await this.octokit.repos.createOrUpdateFileContents({
-      owner: this.username,
-      repo: repoName,
-      path: '.gitignore',
-      message: 'Add .gitignore',
-      content: Buffer.from(this.generateGitignore(params.language)).toString('base64')
-    });
+    // Get all template files from the framework's template directory
+    const templateDir = path.join(
+      this.templateService.getTemplatesDir(),
+      params.language,
+      params.framework
+    );
 
-    // Add GitHub Actions workflow
-    await this.octokit.repos.createOrUpdateFileContents({
-      owner: this.username,
-      repo: repoName,
-      path: '.github/workflows/ci.yml',
-      message: 'Add GitHub Actions workflow',
-      content: Buffer.from(this.generateWorkflow(params)).toString('base64')
-    });
+    // Walk through all files in the template directory
+    const templateFiles = fs.readdirSync(templateDir, { recursive: true });
+    for (const file of templateFiles) {
+      const filePath = path.join(templateDir, file.toString());
+      const stats = fs.statSync(filePath);
+      
+      // Skip directories, we only want files
+      if (stats.isDirectory()) continue;
+
+      // Get the relative path from the template directory
+      const relativePath = path.relative(templateDir, filePath);
+      
+      // Read the file content
+      const content = fs.readFileSync(filePath, 'utf-8');
+      
+      files.push({
+        path: relativePath,
+        content,
+        message: `Add ${relativePath}`
+      });
+    }
+
+    // Add framework-specific files
+    const packageJson = this.frameworkService.generatePackageJson(params);
+    if (packageJson) {
+      files.push({
+        path: 'package.json',
+        content: packageJson,
+        message: 'Add package.json'
+      });
+    }
+
+    const requirementsTxt = this.frameworkService.generateRequirementsTxt(params);
+    if (requirementsTxt) {
+      files.push({
+        path: 'requirements.txt',
+        content: requirementsTxt,
+        message: 'Add requirements.txt'
+      });
+    }
+
+    const pomXml = this.frameworkService.generatePomXml(params);
+    if (pomXml) {
+      files.push({
+        path: 'pom.xml',
+        content: pomXml,
+        message: 'Add pom.xml'
+      });
+    }
+
+    const buildGradle = this.frameworkService.generateBuildGradle(params);
+    if (buildGradle) {
+      files.push({
+        path: 'build.gradle',
+        content: buildGradle,
+        message: 'Add build.gradle'
+      });
+    }
+
+    // Create all files in parallel
+    await Promise.all(files.map(file => 
+      this.octokit.repos.createOrUpdateFileContents({
+        owner: this.username,
+        repo: repoName,
+        path: file.path,
+        message: file.message,
+        content: Buffer.from(file.content).toString('base64')
+      })
+    ));
   }
 
   private generateReadme(params: CreateRepoParams): string {
@@ -192,93 +265,6 @@ ${params.language === 'javascript' ? 'npm run dev' :
   }
 
   private generateWorkflow(params: CreateRepoParams): string {
-    const workflows: Record<string, string> = {
-      javascript: `name: CI/CD
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v2
-      with:
-        node-version: '18'
-        
-    - name: Install dependencies
-      run: npm ci
-      
-    - name: Run tests
-      run: npm test
-      
-    - name: Build
-      run: npm run build`,
-
-      python: `name: CI/CD
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-    
-    - name: Set up Python
-      uses: actions/setup-python@v2
-      with:
-        python-version: '3.9'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install -r requirements.txt
-        
-    - name: Run tests
-      run: |
-        python -m pytest`,
-
-      java: `name: CI/CD
-
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-    
-    - name: Set up JDK
-      uses: actions/setup-java@v2
-      with:
-        java-version: '17'
-        distribution: 'adopt'
-        
-    - name: Build with Maven
-      run: mvn -B package --file pom.xml
-      
-    - name: Run tests
-      run: mvn test`
-    };
-
-    return workflows[params.language] || workflows.javascript;
+    return this.templateService.getWorkflow(params);
   }
 }

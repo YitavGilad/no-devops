@@ -6,16 +6,14 @@ export class TemplateService {
   private templatesDir: string;
 
   constructor() {
-    // In development, templates are in src/templates
-    // In production, templates are copied to dist/templates
-    const isDevelopment = process.env.NODE_ENV === 'development';
-    const baseDir = isDevelopment ? 'src' : 'dist';
-    this.templatesDir = path.join(process.cwd(), baseDir, 'templates');
-    
-    // Ensure templates directory exists
-    if (!fs.existsSync(this.templatesDir)) {
-      throw new Error(`Templates directory not found: ${this.templatesDir}`);
-    }
+    this.templatesDir = path.join(__dirname, '..', 'templates');
+  }
+
+  /**
+   * Get the templates directory path
+   */
+  public getTemplatesDir(): string {
+    return this.templatesDir;
   }
 
   /**
