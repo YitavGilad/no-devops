@@ -1,10 +1,15 @@
-import { useState } from 'react';
-import { Box, Button, Paper, Typography } from '@mui/material';
+import { useState, useCallback } from 'react';
+import { Box, Button, Paper, Typography, Stack } from '@mui/material';
 import { DataGrid } from '@mui/x-data-grid';
 import type { GridColDef } from '@mui/x-data-grid';
 import AddIcon from '@mui/icons-material/Add';
 import PublishIcon from '@mui/icons-material/Publish';
+import ReplayIcon from '@mui/icons-material/Replay';
+import EditIcon from '@mui/icons-material/Edit';
+import DeleteIcon from '@mui/icons-material/Delete';
 import CreateProjectDialog from '../components/dialogs/CreateProjectDialog';
+import LoadingDialog from '../components/dialogs/LoadingDialog';
+import ConfirmDialog from '../components/dialogs/ConfirmDialog';
 
 interface Project {
   id: number;
@@ -14,9 +19,110 @@ interface Project {
   lastModified: string;
   language: string;
   framework: string;
+  published?: boolean;
 }
 
-const columns: GridColDef[] = [
+interface ActionsCellProps {
+  project: Project;
+  onProjectUpdate: (updatedProject: Project) => void;
+  onProjectDelete: (projectId: number) => void;
+}
+
+function ActionsCell({ project, onProjectUpdate, onProjectDelete }: ActionsCellProps) {
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishStatus, setPublishStatus] = useState<'loading' | 'success' | 'error'>('loading');
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handlePublish = useCallback(async () => {
+    setIsPublishing(true);
+    setPublishStatus('loading');
+
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    setPublishStatus('success');
+    setTimeout(() => {
+      setIsPublishing(false);
+      // Update the project's published status
+      const updatedProject = { ...project, published: true };
+      onProjectUpdate(updatedProject);
+    }, 1500);
+  }, [project, onProjectUpdate]);
+
+  const handleUpdate = () => {
+    console.log('Update project:', project);
+  };
+
+  const handleDeleteClick = () => {
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true);
+    // Simulate API call
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    onProjectDelete(project.id);
+    setIsDeleting(false);
+    setIsDeleteDialogOpen(false);
+  };
+
+  const handleDeleteCancel = () => {
+    setIsDeleteDialogOpen(false);
+  };
+
+  return (
+    <>
+      <Stack direction="row" spacing={1} mt={.5}>
+        <Button
+          startIcon={project.published ? <ReplayIcon /> : <PublishIcon />}
+          onClick={handlePublish}
+          variant="contained"
+          color={project.published ? 'info' : 'secondary'}
+          size="small"
+          sx={{ minWidth: '120px' }}
+        >
+          {project.published ? 'Redeploy' : 'Publish'}
+        </Button>
+        <Button
+          startIcon={<EditIcon />}
+          onClick={handleUpdate}
+          variant="outlined"
+          color="primary"
+          size="small"
+        >
+          Update
+        </Button>
+        <Button
+          startIcon={<DeleteIcon />}
+          onClick={handleDeleteClick}
+          variant="outlined"
+          color="error"
+          size="small"
+        >
+          Delete
+        </Button>
+      </Stack>
+
+      <LoadingDialog
+        open={isPublishing}
+        title={publishStatus === 'loading' ? 'Publishing project...' : 'Published successfully!'}
+        status={publishStatus}
+      />
+
+      <ConfirmDialog
+        open={isDeleteDialogOpen}
+        title="Delete Project"
+        message={`Are you sure you want to delete "${project.name}"? This action cannot be undone.`}
+        onConfirm={handleDeleteConfirm}
+        onClose={handleDeleteCancel}
+        isLoading={isDeleting}
+      />
+    </>
+  );
+}
+
+const columns = (onProjectUpdate: (project: Project) => void, onProjectDelete: (projectId: number) => void): GridColDef[] => [
   { field: 'name', headerName: 'Project Name', flex: 1 },
   { field: 'type', headerName: 'Type', flex: 1 },
   { field: 'status', headerName: 'Status', flex: 1 },
@@ -24,25 +130,14 @@ const columns: GridColDef[] = [
   {
     field: 'actions',
     headerName: 'Actions',
-    flex: 1,
-    renderCell: (params) => {
-      const handlePublish = () => {
-        // For now, just console.log the project data
-        console.log('Publishing project:', params.row);
-      };
-
-      return (
-        <Button
-          startIcon={<PublishIcon />}
-          onClick={handlePublish}
-          variant="contained"
-          color="secondary"
-          size="small"
-        >
-          Publish
-        </Button>
-      );
-    },
+    flex: 1.5,
+    renderCell: (params) => (
+      <ActionsCell
+        project={params.row as Project}
+        onProjectUpdate={onProjectUpdate}
+        onProjectDelete={onProjectDelete}
+      />
+    ),
   },
 ];
 
@@ -55,7 +150,8 @@ const initialRows: Project[] = [
     status: 'In Progress', 
     lastModified: '2024-05-29',
     language: 'javascript',
-    framework: 'react'
+    framework: 'react',
+    published: true
   },
   { 
     id: 2, 
@@ -64,69 +160,68 @@ const initialRows: Project[] = [
     status: 'Completed', 
     lastModified: '2024-05-28',
     language: 'javascript',
-    framework: 'nextjs'
+    framework: 'nextjs',
+    published: false
   },
 ];
 
 export default function Projects() {
+  const [open, setOpen] = useState(false);
   const [rows, setRows] = useState<Project[]>(initialRows);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  const handleCreateProject = (projectData: { name: string; language: string; framework: string }) => {
-    const newProject: Project = {
-      id: rows.length + 1,
-      name: projectData.name,
-      type: `${projectData.framework}`,
-      status: 'Not Started',
-      lastModified: new Date().toISOString().split('T')[0],
-      language: projectData.language,
-      framework: projectData.framework,
-    };
+  const handleClickOpen = () => {
+    setOpen(true);
+  };
 
+  const handleClose = () => {
+    setOpen(false);
+  };
+
+  const handleCreateProject = (newProject: Project) => {
     setRows([...rows, newProject]);
-    setIsCreateDialogOpen(false);
+    handleClose();
+  };
+
+  const handleProjectUpdate = (updatedProject: Project) => {
+    setRows(rows.map(row => row.id === updatedProject.id ? updatedProject : row));
+  };
+
+  const handleProjectDelete = (projectId: number) => {
+    setRows(rows.filter(row => row.id !== projectId));
   };
 
   return (
-    <Box>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" color="text.primary">
-          Projects
-        </Typography>
+    <Paper sx={{ p: 2 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+        <Typography variant="h5">Projects</Typography>
         <Button
           variant="contained"
+          color="primary"
           startIcon={<AddIcon />}
-          onClick={() => setIsCreateDialogOpen(true)}
-          sx={{
-            background: (theme) => theme.palette.primary.main,
-            color: 'white',
-            '&:hover': {
-              background: (theme) => theme.palette.primary.dark,
-            },
-          }}
+          onClick={handleClickOpen}
         >
           Create New Project
         </Button>
       </Box>
-      <Paper sx={{ height: 400, width: '100%' }}>
-        <DataGrid
-          rows={rows}
-          columns={columns}
-          initialState={{
-            pagination: {
-              paginationModel: { page: 0, pageSize: 5 },
-            },
-          }}
-          pageSizeOptions={[5, 10]}
-          disableRowSelectionOnClick
-        />
-      </Paper>
+
+      <DataGrid
+        rows={rows}
+        columns={columns(handleProjectUpdate, handleProjectDelete)}
+        initialState={{
+          pagination: {
+            paginationModel: { page: 0, pageSize: 5 },
+          },
+        }}
+        pageSizeOptions={[5, 10]}
+        disableRowSelectionOnClick
+        autoHeight
+      />
 
       <CreateProjectDialog
-        open={isCreateDialogOpen}
-        onClose={() => setIsCreateDialogOpen(false)}
-        onSave={handleCreateProject}
+        open={open}
+        onClose={handleClose}
+        onCreateProject={handleCreateProject}
       />
-    </Box>
+    </Paper>
   );
 }
