@@ -8,12 +8,15 @@ import {
   ListItemText,
   Typography,
 } from '@mui/material';
-import { FolderOutlined } from '@mui/icons-material';
+import { FolderOutlined, AnalyticsOutlined } from '@mui/icons-material';
 import { customStyles } from '../../theme/theme';
+import { Link, useLocation } from 'react-router-dom';
 
 const { sidebarWidth } = customStyles.layout;
 
 export default function Sidebar() {
+  const location = useLocation();
+
   return (
     <Drawer
       variant="permanent"
@@ -36,11 +39,27 @@ export default function Sidebar() {
       </Box>
       <List>
         <ListItem disablePadding>
-          <ListItemButton selected>
+          <ListItemButton
+            component={Link}
+            to="/"
+            selected={location.pathname === '/'}
+          >
             <ListItemIcon>
               <FolderOutlined color="primary" />
             </ListItemIcon>
             <ListItemText primary="Projects" />
+          </ListItemButton>
+        </ListItem>
+        <ListItem disablePadding>
+          <ListItemButton
+            component={Link}
+            to="/statistics"
+            selected={location.pathname === '/statistics'}
+          >
+            <ListItemIcon>
+              <AnalyticsOutlined color="primary" />
+            </ListItemIcon>
+            <ListItemText primary="Statistics" />
           </ListItemButton>
         </ListItem>
       </List>
