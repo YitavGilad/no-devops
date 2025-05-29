@@ -1,0 +1,68 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    name: production
+    environment: production
+    app.kubernetes.io/name: production
+    app.kubernetes.io/instance: production
+---
+# Resource Quota for Java applications typically needs more resources
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: java-quota
+  namespace: production
+spec:
+  hard:
+    requests.cpu: "16"
+    requests.memory: 32Gi
+    limits.cpu: "32"
+    limits.memory: 64Gi
+    pods: "50"
+    services: "20"
+    configmaps: "50"
+    persistentvolumeclaims: "20"
+    secrets: "50"
+    services.nodeports: "10"
+    services.loadbalancers: "5"
+---
+# Limit Range for Java applications
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: java-limits
+  namespace: production
+spec:
+  limits:
+  - type: Container
+    default:
+      cpu: "2000m"
+      memory: "2Gi"
+    defaultRequest:
+      cpu: "500m"
+      memory: "512Mi"
+    max:
+      cpu: "8"
+      memory: "16Gi"
+    min:
+      cpu: "10m"
+      memory: "64Mi"
+  - type: Pod
+    max:
+      cpu: "16"
+      memory: "32Gi"
+---
+# Pod Disruption Budget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: spring-boot-pdb
+  namespace: production
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: spring-boot-app
+      tier: backend

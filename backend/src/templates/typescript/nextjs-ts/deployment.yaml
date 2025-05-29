@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nextjs-ts-app
+  namespace: production
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: nextjs-ts-app
+  template:
+    metadata:
+      labels:
+        app: nextjs-ts-app
+    spec:
+      containers:
+        - name: nextjs-ts-app
+          image: your-registry/nextjs-ts-app:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: NODE_ENV
+              value: "production"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 5

@@ -1,0 +1,53 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: production
+  labels:
+    name: production
+    environment: production
+    app.kubernetes.io/name: production
+    app.kubernetes.io/instance: production
+---
+# Resource Quota for Python applications typically needs more CPU/memory
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: python-quota
+  namespace: production
+spec:
+  hard:
+    requests.cpu: "8"
+    requests.memory: 16Gi
+    limits.cpu: "16"
+    limits.memory: 32Gi
+    pods: "30"
+    services: "15"
+    configmaps: "20"
+    persistentvolumeclaims: "10"
+    secrets: "20"
+---
+# Limit Range for Python applications
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: python-limits
+  namespace: production
+spec:
+  limits:
+  - type: Container
+    default:
+      cpu: "1000m"
+      memory: "1Gi"
+    defaultRequest:
+      cpu: "200m"
+      memory: "256Mi"
+    max:
+      cpu: "4"
+      memory: "8Gi"
+    min:
+      cpu: "10m"
+      memory: "32Mi"
+  - type: Pod
+    max:
+      cpu: "8"
+      memory: "16Gi"
